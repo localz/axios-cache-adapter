@@ -1,0 +1,33 @@
+env:
+  NODE_VERSION: "12" # The version of Node to use while building your package
+
+steps:
+  - label: ":hammer: Build and Test"
+    command:
+      - npm config set "//registry.npmjs.org/:_authToken" $${NPM_TOKEN} # Sets the NPM_TOKEN from the Buildkite secrets file
+      - npm install
+      - npm test
+    plugins:
+			- docker-login#v2.0.1:
+          username: localzservice
+          password-env: DOCKER_LOGIN_PASSWORD
+      - docker#v3.5.0:
+          image: localz/buildkite-node:${NODE_VERSION}
+          environment:
+            - NPM_TOKEN
+
+  - wait: ~ # Wait until the Build & Test job passes before continuing
+
+  - label: ":cloud: Publish"
+    if: build.tag != null # Only publish to NPM if the build is a tagged release
+    commands:
+      - npm config set "//registry.npmjs.org/:_authToken" $${NPM_TOKEN}
+      - npm publish
+    plugins:
+			- docker-login#v2.0.1:
+          username: localzservice
+          password-env: DOCKER_LOGIN_PASSWORD
+      - docker#v3.5.0:
+          image: localz/buildkite-node:${NODE_VERSION}
+          environment:
+            - NPM_TOKEN
